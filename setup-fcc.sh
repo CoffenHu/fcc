@@ -282,7 +282,7 @@ configure_model() {
     echo "  └─────────────────────────────────────────────┘"
     echo ""
 
-    read -r -p "请选择提供商 [1-15] (默认: 1 DeepSeek): " PROVIDER_CHOICE
+    read -r -p "请选择提供商 [1-15] (默认: 1 DeepSeek): " PROVIDER_CHOICE </dev/tty
     PROVIDER_CHOICE="${PROVIDER_CHOICE:-1}"
 
     case "$PROVIDER_CHOICE" in
@@ -393,7 +393,7 @@ configure_model() {
     echo "  获取 Key: $KEY_URL"
     echo ""
 
-    read -r -p "请输入 ${PROVIDER_NAME} API Key: " API_KEY
+    read -r -p "请输入 ${PROVIDER_NAME} API Key: " API_KEY </dev/tty
 
     if [ -z "$API_KEY" ]; then
         warn "API Key 为空，跳过配置。你之后可以在管理界面配置。"
@@ -497,8 +497,8 @@ main() {
     # ---- 步骤 4: 询问用户 ----
     header "=== 开始安装 FCC ==="
     info "即将安装 Free Claude Code（包含 uv + Python 3.14）"
-    info "本项目地址: https://github.com/Alishahryar1/free-claude-code"
-    read -r -p "是否继续？[Y/n] " REPLY
+    info "free-claude-code项目地址: https://github.com/Alishahryar1/free-claude-code"
+    read -r -p "是否继续？[Y/n] " REPLY </dev/tty
     REPLY="${REPLY:-y}"
     if [ "$REPLY" != "y" ] && [ "$REPLY" != "Y" ]; then
         info "已取消安装。"
@@ -550,7 +550,7 @@ main() {
 
     # ---- 步骤 7: 开机自启动 ----
     header "=== 开机自启动配置 ==="
-    read -r -p "是否配置 fcc-server 开机自启动？[Y/n] " REPLY_AUTOSTART
+    read -r -p "是否配置 fcc-server 开机自启动？[Y/n] " REPLY_AUTOSTART </dev/tty
     REPLY_AUTOSTART="${REPLY_AUTOSTART:-y}"
     if [ "$REPLY_AUTOSTART" = "y" ] || [ "$REPLY_AUTOSTART" = "Y" ]; then
         configure_autostart
@@ -561,7 +561,7 @@ main() {
     # ---- 步骤 8: 模型配置 ----
     echo ""
     header "=== 模型配置 ==="
-    read -r -p "是否现在配置模型和 API Key？[Y/n] " REPLY_MODEL
+    read -r -p "是否现在配置模型和 API Key？[Y/n] " REPLY_MODEL </dev/tty
     REPLY_MODEL="${REPLY_MODEL:-y}"
     if [ "$REPLY_MODEL" = "y" ] || [ "$REPLY_MODEL" = "Y" ]; then
         configure_model
