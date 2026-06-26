@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Free Claude Code (FCC) 一键安装/检测脚本
-# 支持 Windows (Git Bash / WSL) / macOS / Linux
+# 支持 Linux (含 WSL/Docker) / macOS
+# Windows 用户请使用: irm ...setup-fcc.ps1 | iex
 # ==============================================================================
 set -euo pipefail
 
@@ -25,40 +26,23 @@ detect_os() {
     kernel="$(uname -s)"
 
     IS_DOCKER=false
-    IS_WSL=false
-
-    # 检测 Docker 容器
     if [ -f /.dockerenv ] || grep -q docker /proc/1/cgroup 2>/dev/null; then
         IS_DOCKER=true
     fi
 
-    # 检测 WSL（排除 Docker 容器）
-    if [ "$IS_DOCKER" = false ]; then
-        if [ -f /proc/sys/fs/binfmt_misc/WSLInterop ] 2>/dev/null || \
-           grep -qi microsoft /proc/version 2>/dev/null; then
-            IS_WSL=true
-        fi
-    fi
-
-    # 确定操作系统类型
-    if [ "$IS_WSL" = true ]; then
-        OS="linux"  # WSL 使用 Linux 安装脚本
-    else
-        case "$kernel" in
-            Linux*)  OS="linux";;
-            Darwin*) OS="macos";;
-            MINGW*|MSYS*|CYGWIN*) OS="windows";;
-            *)       OS="unknown";;
-        esac
-    fi
+    case "$kernel" in
+        Linux*)  OS="linux";;
+        Darwin*) OS="macos";;
+        MINGW*|MSYS*|CYGWIN*)
+            echo "Windows 用户请使用 PowerShell 脚本: irm https://raw.githubusercontent.com/CoffenHu/fcc/master/setup-fcc.ps1 | iex"
+            exit 1
+            ;;
+        *)       OS="unknown";;
+    esac
 
     header "=== 系统检测 ==="
     if [ "$IS_DOCKER" = true ]; then
         echo "操作系统: Linux (Docker)"
-    elif [ "$IS_WSL" = true ]; then
-        echo "操作系统: Windows (WSL)"
-    elif [ "$OS" = "windows" ]; then
-        echo "操作系统: Windows (Git Bash)"
     else
         echo "操作系统: $OS"
     fi
@@ -99,42 +83,28 @@ install_hint() {
     echo "  ┌─ 如何安装 $tool ─────────────────────────"
     case "$tool" in
         git)
-            case "$OS" in
-                windows) echo "  │  下载: https://git-scm.com/download/win";;
-                macos)   echo "  │  brew install git";;
-                linux)   echo "  │  sudo apt install git  (Debian/Ubuntu)"
-                         echo "  │  sudo dnf install git  (Fedora)"
-                         echo "  │  sudo pacman -S git    (Arch)";;
-            esac ;;
+            if [ "$OS" = "macos" ]; then
+                echo "  │  brew install git"
+            else
+                echo "  │  sudo apt install git  (Debian/Ubuntu)"
+                echo "  │  sudo dnf install git  (Fedora)"
+                echo "  │  sudo pacman -S git    (Arch)"
+            fi ;;
         node|npm)
-            case "$OS" in
-                windows) echo "  │  下载: https://nodejs.org (推荐 LTS 版本)";;
-                macos)   echo "  │  brew install node";;
-                linux)   echo "  │  下载: https://nodejs.org 或使用 nvm";;
-            esac ;;
+            if [ "$OS" = "macos" ]; then
+                echo "  │  brew install node"
+            else
+                echo "  │  curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash -"
+                echo "  │  sudo apt install -y nodejs"
+            fi ;;
         curl)
-            case "$OS" in
-                windows) echo "  │  Git Bash 自带 curl，或下载: https://curl.se";;
-                macos)   echo "  │  系统自带 curl";;
-                linux)   echo "  │  sudo apt install curl  (Debian/Ubuntu)";;
-            esac ;;
+            if [ "$OS" = "macos" ]; then
+                echo "  │  系统自带 curl"
+            else
+                echo "  │  sudo apt install curl  (Debian/Ubuntu)"
+            fi ;;
     esac
     echo "  └───────────────────────────────────────────"
-}
-
-# ---------- 查找 Windows 下可用的 PowerShell ----------
-find_powershell() {
-    if has_cmd powershell.exe; then
-        echo "powershell.exe"
-    elif has_cmd powershell; then
-        echo "powershell"
-    elif has_cmd pwsh.exe; then
-        echo "pwsh.exe"
-    elif has_cmd pwsh; then
-        echo "pwsh"
-    else
-        echo ""
-    fi
 }
 
 # ---------- FCC 配置文件路径 ----------
@@ -149,37 +119,7 @@ configure_autostart() {
         return
     fi
 
-    if [ "$OS" = "windows" ]; then
-        # Windows: 在 Startup 文件夹创建 VBS 脚本来静默启动 fcc-server
-        STARTUP_DIR="$APPDATA/Microsoft/Windows/Start Menu/Programs/Startup"
-        if [ ! -d "$STARTUP_DIR" ]; then
-            warn "未找到 Windows 启动文件夹，跳过自启动配置。"
-            return
-        fi
-
-        # 找到 fcc-server 的完整路径
-        FCC_SERVER_PATH=$(command -v fcc-server 2>/dev/null || echo "")
-        if [ -z "$FCC_SERVER_PATH" ]; then
-            # 从默认位置找
-            if [ -f "$HOME/.cargo/bin/fcc-server.exe" ]; then
-                FCC_SERVER_PATH="$HOME/.cargo/bin/fcc-server.exe"
-            elif [ -f "$HOME/.local/bin/fcc-server" ]; then
-                FCC_SERVER_PATH="$HOME/.local/bin/fcc-server"
-            else
-                warn "未找到 fcc-server 路径，跳过自启动配置。"
-                return
-            fi
-        fi
-
-        # 写入 VBS 脚本（静默启动，无窗口）
-        cat > "$STARTUP_DIR/fcc-server.vbs" << VBS
-Set WshShell = CreateObject("WScript.Shell")
-WshShell.Run """$FCC_SERVER_PATH""", 0, False
-VBS
-        ok "已创建 Windows 启动项: $STARTUP_DIR/fcc-server.vbs"
-        echo "  fcc-server 将在下次登录时自动静默启动（后台运行）。"
-
-    elif [ "$OS" = "macos" ]; then
+    if [ "$OS" = "macos" ]; then
         # macOS: 创建 LaunchAgent plist
         PLIST_DIR="$HOME/Library/LaunchAgents"
         mkdir -p "$PLIST_DIR"
@@ -483,18 +423,7 @@ main() {
 
     echo ""
 
-    # ---- 步骤 3: Windows 专用 - 查找 PowerShell ----
-    if [ "$OS" = "windows" ]; then
-        PWSH=$(find_powershell)
-        if [ -z "$PWSH" ]; then
-            fail "未找到 PowerShell。请确保已安装 PowerShell 5.1+ 或 PowerShell 7+。"
-            echo "  下载: https://aka.ms/powershell"
-            exit 1
-        fi
-        ok "检测到 PowerShell: $PWSH"
-    fi
-
-    # ---- 步骤 4: 询问用户 ----
+    # ---- 步骤 3: 询问用户 ----
     header "=== 开始安装 FCC ==="
     info "即将安装 Free Claude Code（包含 uv + Python 3.14）"
     info "free-claude-code项目地址: https://github.com/Alishahryar1/free-claude-code"
@@ -505,7 +434,7 @@ main() {
         exit 0
     fi
 
-    # ---- 步骤 5: 配置镜像加速 ----
+    # ---- 步骤 4: 配置镜像加速 ----
     header "=== 配置镜像加速 ==="
     info "配置 npm 和 PyPI 阿里镜像源，加速国内下载..."
 
@@ -517,26 +446,16 @@ main() {
     export UV_INDEX_URL="https://mirrors.aliyun.com/pypi/simple/"
     ok "PyPI 镜像: mirrors.aliyun.com"
 
-    # ---- 步骤 6: 执行安装 ----
+    # ---- 步骤 5: 执行安装 ----
     echo ""
 
-    if [ "$OS" = "windows" ]; then
-        header "=== 使用 PowerShell 安装 ==="
-        info "执行 Windows 安装脚本（这将需要几分钟）..."
-        info "安装内容: uv → Python 3.14 → Free Claude Code"
+    header "=== 使用 Shell 安装 ==="
+    info "执行安装脚本（这将需要几分钟）..."
+    info "安装内容: uv → Python 3.14 → Free Claude Code"
 
-        "$PWSH" -NoProfile -ExecutionPolicy Bypass -Command \
-            "\$env:UV_INDEX_URL='https://mirrors.aliyun.com/pypi/simple/'; npm config set registry https://registry.npmmirror.com 2>\$null; irm 'https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.ps1?raw=1' | iex"
+    curl -fsSL "https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.sh?raw=1" | sh
 
-    elif [ "$OS" = "macos" ] || [ "$OS" = "linux" ]; then
-        header "=== 使用 Shell 安装 ==="
-        info "执行 macOS/Linux 安装脚本（这将需要几分钟）..."
-        info "安装内容: uv → Python 3.14 → Free Claude Code"
-
-        curl -fsSL "https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.sh?raw=1" | sh
-    fi
-
-    # ---- 步骤 7: 验证安装 ----
+    # ---- 步骤 6: 验证安装 ----
     echo ""
     header "=== 验证安装 ==="
 
@@ -552,15 +471,11 @@ main() {
         ok "fcc-server 已就绪"
     else
         warn "fcc-server 未在当前 PATH 中找到。"
-        if [ "$OS" = "windows" ]; then
-            echo "  提示: 关闭并重新打开终端即可生效。"
-        else
-            echo "  提示: 运行 'source ~/.bashrc' 或重新打开终端。"
-            echo "  如果仍找不到，检查 ~/.local/bin 是否在 PATH 中。"
-        fi
+        echo "  提示: 运行 'source ~/.bashrc' 或重新打开终端。"
+        echo "  如果仍找不到，检查 ~/.local/bin 是否在 PATH 中。"
     fi
 
-    # ---- 步骤 8: 开机自启动 ----
+    # ---- 步骤 7: 开机自启动 ----
     header "=== 开机自启动配置 ==="
     read -r -p "是否配置 fcc-server 开机自启动？[Y/n] " REPLY_AUTOSTART </dev/tty
     REPLY_AUTOSTART="${REPLY_AUTOSTART:-y}"
@@ -570,7 +485,7 @@ main() {
         info "跳过开机自启动配置。"
     fi
 
-    # ---- 步骤 9: 模型配置 ----
+    # ---- 步骤 8: 模型配置 ----
     echo ""
     header "=== 模型配置 ==="
     read -r -p "是否现在配置模型和 API Key？[Y/n] " REPLY_MODEL </dev/tty

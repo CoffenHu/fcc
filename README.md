@@ -34,19 +34,18 @@ irm https://raw.githubusercontent.com/CoffenHu/fcc/master/setup-fcc.ps1 | iex
 
 ## 安装过程
 
-脚本运行后分 9 个步骤：
+脚本运行后分 8 个步骤：
 
 | 步骤 | 说明 | 交互 |
 |------|------|------|
 | 1 | 检测操作系统和架构 | 自动 |
 | 2 | 检测 git/curl/node/npm/python3/uv | 自动 |
-| 3 | Windows 下查找 PowerShell | 自动 |
-| 4 | 确认是否继续安装 | **Y/n** |
-| 5 | 配置 npm + PyPI 阿里镜像源 | 自动 |
-| 6 | 调用 FCC 官方脚本安装 | 自动 |
-| 7 | 验证安装结果 | 自动 |
-| 8 | 配置开机自启动 | **Y/n** |
-| 9 | 选择模型提供商 + API Key | **Y/n** |
+| 3 | 确认是否继续安装 | **Y/n** |
+| 4 | 配置 npm + PyPI 阿里镜像源 | 自动 |
+| 5 | 调用 FCC 官方脚本安装 | 自动 |
+| 6 | 验证安装结果 | 自动 |
+| 7 | 配置开机自启动 | **Y/n** |
+| 8 | 选择模型提供商 + API Key | **Y/n** |
 
 ## 支持的 AI 模型提供商
 
@@ -79,7 +78,6 @@ irm https://raw.githubusercontent.com/CoffenHu/fcc/master/setup-fcc.ps1 | iex
 
 | 系统 | 实现方式 |
 |------|----------|
-| Windows | 启动文件夹 `.vbs` 脚本（无窗口静默启动） |
 | macOS | `LaunchAgent` plist，登录后自动加载 |
 | Linux | `systemd` 用户服务（`systemctl --user enable`） |
 
