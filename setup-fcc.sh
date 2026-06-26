@@ -281,34 +281,32 @@ start_fcc_server_now() {
 configure_model() {
     echo ""
 
-    # 确保配置文件目录存在
     mkdir -p "$HOME/.fcc"
 
-    # 列出可用的提供商
-    echo "  ┌─────────────────────────────────────────────┐"
-    echo "  │         FCC 支持的 AI 模型提供商            │"
-    echo "  ├─────────────────────────────────────────────┤"
-    echo "  │  远程提供商（需要 API Key）                  │"
-    echo "  │                                               │"
-    echo "  │  1. DeepSeek         (platform.deepseek.com) │"
-    echo "  │  2. NVIDIA NIM       (build.nvidia.com)       │"
-    echo "  │  3. OpenRouter       (openrouter.ai)          │"
-    echo "  │  4. Google Gemini    (aistudio.google.com)    │"
-    echo "  │  5. Groq             (console.groq.com)       │"
-    echo "  │  6. Cerebras         (cloud.cerebras.ai)      │"
-    echo "  │  7. Kimi             (platform.moonshot.ai)   │"
-    echo "  │  8. Mistral          (console.mistral.ai)     │"
-    echo "  │  9. Fireworks        (fireworks.ai)           │"
-    echo "  │ 10. Z.ai             (z.ai)                   │"
-    echo "  │ 11. Wafer            (pass.wafer.ai)          │"
-    echo "  │ 12. OpenCode         (opencode.ai)            │"
-    echo "  │                                               │"
-    echo "  │  本地提供商（无需 API Key）                    │"
-    echo "  │                                               │"
-    echo "  │ 13. Ollama           (localhost:11434)         │"
-    echo "  │ 14. LM Studio        (localhost:1234)          │"
-    echo "  │ 15. llama.cpp        (localhost:8080)          │"
-    echo "  └─────────────────────────────────────────────┘"
+    echo "  ┌──────────────────────────────────────────────────┐"
+    echo "  │            FCC 支持的 AI 模型提供商               │"
+    echo "  ├──────────────────────────────────────────────────┤"
+    echo "  │  远程提供商（需要 API Key）                        │"
+    echo "  │                                                  │"
+    echo "  │   1. DeepSeek         platform.deepseek.com       │"
+    echo "  │   2. NVIDIA NIM       build.nvidia.com             │"
+    echo "  │   3. OpenRouter       openrouter.ai                │"
+    echo "  │   4. Google Gemini    aistudio.google.com           │"
+    echo "  │   5. Groq             console.groq.com              │"
+    echo "  │   6. Cerebras         cloud.cerebras.ai             │"
+    echo "  │   7. Kimi             platform.moonshot.ai          │"
+    echo "  │   8. Mistral          console.mistral.ai            │"
+    echo "  │   9. Fireworks        fireworks.ai                  │"
+    echo "  │  10. Z.ai             z.ai                          │"
+    echo "  │  11. Wafer            pass.wafer.ai                 │"
+    echo "  │  12. OpenCode         opencode.ai                   │"
+    echo "  │                                                  │"
+    echo "  │  本地提供商（无需 API Key）                          │"
+    echo "  │                                                  │"
+    echo "  │  13. Ollama           localhost:11434               │"
+    echo "  │  14. LM Studio        localhost:1234/v1             │"
+    echo "  │  15. llama.cpp        localhost:8080/v1             │"
+    echo "  └──────────────────────────────────────────────────┘"
     echo ""
 
     read -r -p "请选择提供商 [1-15] (默认: 1 DeepSeek): " PROVIDER_CHOICE </dev/tty
@@ -479,9 +477,11 @@ EOF
 # ---------- 主流程 ----------
 main() {
     echo ""
-    echo "╔═══════════════════════════════════════════════╗"
-    echo "║   Free Claude Code (FCC) 自动化安装脚本        ║"
-    echo "╚═══════════════════════════════════════════════╝"
+    echo "╔══════════════════════════════════════════════════╗"
+    echo "║                                                  ║"
+    echo "║     Free Claude Code (FCC) 一键安装脚本           ║"
+    echo "║                                                  ║"
+    echo "╚══════════════════════════════════════════════════╝"
 
     # ---- 步骤 1: 检测系统 ----
     detect_os
@@ -490,6 +490,10 @@ main() {
         fail "无法识别当前操作系统"
         exit 1
     fi
+
+    # 预加载常用 bin 目录，避免已安装的 uv 等工具检测不到
+    [ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin:$PATH"
+    [ -d "$HOME/.cargo/bin" ] && export PATH="$HOME/.cargo/bin:$PATH"
 
     # ---- 步骤 2: 检测必需工具 ----
     header "=== 检测常用工具 ==="
@@ -536,8 +540,6 @@ main() {
     ok "PyPI 镜像: mirrors.aliyun.com"
 
     # ---- 步骤 5: 执行安装 ----
-    echo ""
-
     header "=== 使用 Shell 安装 ==="
     info "执行安装脚本（这将需要几分钟）..."
     info "安装内容: uv → Python 3.14 → Free Claude Code"
@@ -545,7 +547,6 @@ main() {
     curl -fsSL "https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.sh?raw=1" | sh
 
     # ---- 步骤 6: 修复 PATH + 验证 ----
-    echo ""
     header "=== 修复 PATH + 验证安装 ==="
 
     # 将 ~/.local/bin 写入 shell 配置文件，避免每次重启终端丢失
@@ -578,7 +579,6 @@ main() {
     fi
 
     # ---- 步骤 8: 模型配置 ----
-    echo ""
     header "=== 模型配置 ==="
     read -r -p "是否现在配置模型和 API Key？[Y/n] " REPLY_MODEL </dev/tty
     REPLY_MODEL="${REPLY_MODEL:-y}"
@@ -589,7 +589,6 @@ main() {
     fi
 
     # ---- 步骤 9: Claude Code 自动升级配置 ----
-    echo ""
     header "=== Claude Code 自动升级配置 ==="
     echo "  Claude Code 默认会自动更新到最新版。"
     echo "  禁用后可锁定版本，避免兼容性问题。"
@@ -608,7 +607,6 @@ main() {
         ok "已禁用 Claude Code 自动升级"
 
         # ---- 步骤 10: 安装稳定版本 ----
-        echo ""
         header "=== 安装 Claude Code 稳定版本 ==="
         STABLE_VERSION="2.1.150"
         info "最新版可能存在兼容性问题，稳定版 $STABLE_VERSION 经过充分测试。"
@@ -634,26 +632,29 @@ main() {
 
     # ---- 完成 ----
     echo ""
-    echo "╔═══════════════════════════════════════════════╗"
-    echo "║           安装完成！                         ║"
-    echo "╠═══════════════════════════════════════════════╣"
-    echo "║                                               ║"
-    echo "║  ⚡ 立即生效:                                  ║"
-    echo "║     source ~/.bashrc                          ║"
-    echo "║                                               ║"
-    echo "║  启动代理:   fcc-server                       ║"
-    echo "║  运行 Claude: fcc-claude                      ║"
-    echo "║  运行 Codex:  fcc-codex                        ║"
-    echo "║                                               ║"
-    echo "║  管理界面:   http://127.0.0.1:8082/admin       ║"
-    echo "║                                               ║"
-    echo "║  工作流程:                                     ║"
-    echo "║  1. fcc-server    # 启动代理                  ║"
-    echo "║  2. 打开 http://127.0.0.1:8082/admin          ║"
-    echo "║  3. 配置 API Key 和模型                        ║"
-    echo "║  4. fcc-claude    # 开始使用                  ║"
-    echo "║                                               ║"
-    echo "╚═══════════════════════════════════════════════╝"
+    echo "╔══════════════════════════════════════════════════╗"
+    echo "║                                                  ║"
+    echo "║              安装完成，开箱即用！                  ║"
+    echo "║                                                  ║"
+    echo "╠══════════════════════════════════════════════════╣"
+    echo "║                                                  ║"
+    echo "║  新终端生效:                                      ║"
+    echo "║    source ~/.bashrc   (或重开终端)                ║"
+    echo "║                                                  ║"
+    echo "║  直接使用 (无需额外配置):                          ║"
+    echo "║    fcc-claude     Claude Code 编程助手            ║"
+    echo "║    fcc-codex      OpenAI Codex 编程助手           ║"
+    echo "║                                                  ║"
+    echo "║  服务管理:                                        ║"
+    echo "║    fcc-server     启动代理服务                    ║"
+    echo "║    http://127.0.0.1:8082/admin   管理界面          ║"
+    echo "║                                                  ║"
+    echo "║  工作流程:                                        ║"
+    echo "║    1. fcc-server 已在后台运行                     ║"
+    echo "║    2. 打开 http://127.0.0.1:8082/admin 配置模型    ║"
+    echo "║    3. fcc-claude 或 fcc-codex 开始编码            ║"
+    echo "║                                                  ║"
+    echo "╚══════════════════════════════════════════════════╝"
     echo ""
     # 最后一次尝试：确保当前会话能直接用
     [ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin:$PATH" 2>/dev/null || true
