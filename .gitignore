@@ -1,0 +1,40 @@
+# Claude Code
+.claude/
+CLAUDE.md
+AGENTS.md
+ARCHITECTURE.md
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+.venv/
+venv/
+
+# Node.js
+node_modules/
+
+# Logs
+*.log
+
+# Backups
+*.backup.*
+*.bak
