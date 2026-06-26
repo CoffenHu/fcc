@@ -110,12 +110,52 @@ install_hint() {
 # ---------- FCC 配置文件路径 ----------
 FCC_ENV_FILE="$HOME/.fcc/.env"
 
+# ---------- PATH 自动修复 ----------
+fix_shell_path() {
+    local bins=("$HOME/.local/bin" "$HOME/.cargo/bin")
+    local profiles=("$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile" "$HOME/.zshrc")
+
+    for bin_dir in "${bins[@]}"; do
+        # 当前会话立即生效
+        [ -d "$bin_dir" ] && export PATH="$bin_dir:$PATH"
+
+        for profile in "${profiles[@]}"; do
+            if [ -f "$profile" ]; then
+                if ! grep -q "$bin_dir" "$profile" 2>/dev/null; then
+                    echo "export PATH=\"$bin_dir:\$PATH\"" >> "$profile"
+                fi
+            fi
+        done
+    done
+}
+
 # ---------- 开机自启动配置 ----------
 configure_autostart() {
     echo ""
 
+    FCC_SERVER_PATH=$(command -v fcc-server 2>/dev/null || echo "$HOME/.local/bin/fcc-server")
+
     if [ "$IS_DOCKER" = true ]; then
-        warn "当前运行在 Docker 容器中，跳过自启动配置。"
+        # Docker 容器: 通过 .bashrc 实现自动启动
+        if ! grep -q "fcc-server" "$HOME/.bashrc" 2>/dev/null; then
+            cat >> "$HOME/.bashrc" << 'BASHRC'
+# FCC auto-start (added by setup-fcc.sh)
+if command -v fcc-server >/dev/null 2>&1; then
+    if ! pgrep -f "fcc-server" >/dev/null 2>&1; then
+        echo "Starting fcc-server..."
+        fcc-server &
+        sleep 1
+    fi
+fi
+BASHRC
+        fi
+        ok "已配置 Docker 自启动 (写入 ~/.bashrc)"
+        # 立即启动
+        if ! pgrep -f "fcc-server" >/dev/null 2>&1; then
+            nohup "$FCC_SERVER_PATH" > "$HOME/.fcc/fcc.log" 2>&1 &
+            sleep 1
+            ok "fcc-server 已在后台启动"
+        fi
         return
     fi
 
@@ -124,8 +164,6 @@ configure_autostart() {
         PLIST_DIR="$HOME/Library/LaunchAgents"
         mkdir -p "$PLIST_DIR"
         PLIST_FILE="$PLIST_DIR/com.fcc.server.plist"
-
-        FCC_SERVER_PATH=$(command -v fcc-server 2>/dev/null || echo "$HOME/.local/bin/fcc-server")
 
         cat > "$PLIST_FILE" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -151,16 +189,19 @@ configure_autostart() {
 PLIST
         launchctl load "$PLIST_FILE" 2>/dev/null || true
         ok "已创建 macOS 启动项: $PLIST_FILE"
+        # 立即启动
+        nohup "$FCC_SERVER_PATH" > "$HOME/.fcc/fcc.log" 2>&1 &
+        sleep 1
+        ok "fcc-server 已在后台启动"
 
     elif [ "$OS" = "linux" ]; then
-        # Linux: 创建 systemd user service
-        SYSTEMD_DIR="$HOME/.config/systemd/user"
-        mkdir -p "$SYSTEMD_DIR"
-        SERVICE_FILE="$SYSTEMD_DIR/fcc-server.service"
+        # Linux: 优先 systemd，不可用时回退到 .bashrc
+        if command -v systemctl >/dev/null 2>&1 && systemctl --user >/dev/null 2>&1; then
+            SYSTEMD_DIR="$HOME/.config/systemd/user"
+            mkdir -p "$SYSTEMD_DIR"
+            SERVICE_FILE="$SYSTEMD_DIR/fcc-server.service"
 
-        FCC_SERVER_PATH=$(command -v fcc-server 2>/dev/null || echo "$HOME/.local/bin/fcc-server")
-
-        cat > "$SERVICE_FILE" << SERVICE
+            cat > "$SERVICE_FILE" << SERVICE
 [Unit]
 Description=Free Claude Code Proxy Server
 After=network-online.target
@@ -177,14 +218,51 @@ Environment="PATH=$PATH"
 WantedBy=default.target
 SERVICE
 
-        systemctl --user daemon-reload 2>/dev/null || true
-        systemctl --user enable fcc-server.service 2>/dev/null || true
-        systemctl --user start fcc-server.service 2>/dev/null || true
-        ok "已创建 Linux systemd 用户服务: $SERVICE_FILE"
-        echo "  管理命令:"
-        echo "    systemctl --user status fcc-server"
-        echo "    systemctl --user stop fcc-server"
-        echo "    systemctl --user disable fcc-server"
+            systemctl --user daemon-reload 2>/dev/null || true
+            systemctl --user enable fcc-server.service 2>/dev/null || true
+            systemctl --user start fcc-server.service 2>/dev/null || true
+            ok "已创建 systemd 用户服务: $SERVICE_FILE"
+            echo "  管理命令:"
+            echo "    systemctl --user status fcc-server"
+            echo "    systemctl --user stop fcc-server"
+        else
+            # systemd 不可用，回退到 .bashrc
+            if ! grep -q "fcc-server" "$HOME/.bashrc" 2>/dev/null; then
+                cat >> "$HOME/.bashrc" << 'BASHRC'
+# FCC auto-start (added by setup-fcc.sh)
+if command -v fcc-server >/dev/null 2>&1; then
+    if ! pgrep -f "fcc-server" >/dev/null 2>&1; then
+        echo "Starting fcc-server..."
+        fcc-server &
+        sleep 1
+    fi
+fi
+BASHRC
+            fi
+            ok "已配置自启动 (写入 ~/.bashrc)"
+            # 立即启动
+            nohup "$FCC_SERVER_PATH" > "$HOME/.fcc/fcc.log" 2>&1 &
+            sleep 1
+            ok "fcc-server 已在后台启动"
+        fi
+    fi
+}
+
+# ---------- 启动 fcc-server（开箱即用） ----------
+start_fcc_server_now() {
+    FCC_SERVER_PATH=$(command -v fcc-server 2>/dev/null || echo "$HOME/.local/bin/fcc-server")
+
+    if [ -x "$FCC_SERVER_PATH" ] || command -v fcc-server >/dev/null 2>&1; then
+        # 检查是否已在运行
+        if pgrep -f "fcc-server" >/dev/null 2>&1; then
+            return
+        fi
+        mkdir -p "$HOME/.fcc"
+        nohup "$FCC_SERVER_PATH" > "$HOME/.fcc/fcc.log" 2>&1 &
+        sleep 1
+        if pgrep -f "fcc-server" >/dev/null 2>&1; then
+            ok "fcc-server 已启动，现在可直接使用 fcc-claude / fcc-codex"
+        fi
     fi
 }
 
@@ -455,25 +533,27 @@ main() {
 
     curl -fsSL "https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.sh?raw=1" | sh
 
-    # ---- 步骤 6: 验证安装 ----
+    # ---- 步骤 6: 修复 PATH + 验证 ----
     echo ""
-    header "=== 验证安装 ==="
+    header "=== 修复 PATH + 验证安装 ==="
 
-    # 刷新 PATH（uv 安装后可能新增了路径）
-    if [ -d "$HOME/.local/bin" ]; then
-        export PATH="$HOME/.local/bin:$PATH"
-    fi
-    if [ -d "$HOME/.cargo/bin" ]; then
-        export PATH="$HOME/.cargo/bin:$PATH"
-    fi
+    # 将 ~/.local/bin 写入 shell 配置文件，避免每次重启终端丢失
+    fix_shell_path
 
     if has_cmd fcc-server; then
         ok "fcc-server 已就绪"
     else
-        warn "fcc-server 未在当前 PATH 中找到。"
-        echo "  提示: 运行 'source ~/.bashrc' 或重新打开终端。"
-        echo "  如果仍找不到，检查 ~/.local/bin 是否在 PATH 中。"
+        # 最后一次尝试
+        if [ -x "$HOME/.local/bin/fcc-server" ]; then
+            export PATH="$HOME/.local/bin:$PATH"
+            ok "fcc-server 已找到并加入 PATH"
+        else
+            warn "fcc-server 未找到，请检查安装是否成功。"
+        fi
     fi
+
+    # 自动后台启动 fcc-server，让用户安装后就能直接用
+    start_fcc_server_now
 
     # ---- 步骤 7: 开机自启动 ----
     header "=== 开机自启动配置 ==="
@@ -483,6 +563,7 @@ main() {
         configure_autostart
     else
         info "跳过开机自启动配置。"
+        echo "  手动启动: fcc-server &"
     fi
 
     # ---- 步骤 8: 模型配置 ----
