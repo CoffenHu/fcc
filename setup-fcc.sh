@@ -114,6 +114,36 @@ install_hint() {
     echo "  └───────────────────────────────────────────"
 }
 
+# ---------- 自动安装系统包 ----------
+auto_install_pkg() {
+    local pkg="$1"
+    local name="${2:-$pkg}"
+    echo ""
+    header "=== 自动安装 $name ==="
+    info "检测到 $name 未安装，正在自动安装..."
+
+    if [ "$OS" = "macos" ]; then
+        if command -v brew >/dev/null 2>&1; then
+            brew install "$pkg" && return 0
+        fi
+        warn "未找到 Homebrew，跳过自动安装。"
+        return 1
+    fi
+
+    if command -v apt-get >/dev/null 2>&1; then
+        sudo apt-get update -qq && sudo apt-get install -y "$pkg" && return 0
+    elif command -v dnf >/dev/null 2>&1; then
+        sudo dnf install -y "$pkg" && return 0
+    elif command -v yum >/dev/null 2>&1; then
+        sudo yum install -y "$pkg" && return 0
+    elif command -v pacman >/dev/null 2>&1; then
+        sudo pacman -S --noconfirm "$pkg" && return 0
+    fi
+
+    warn "未找到已知包管理器，请手动安装 $name。"
+    return 1
+}
+
 # ---------- 自动安装 Node.js ----------
 auto_install_node() {
     echo ""
@@ -556,31 +586,29 @@ main() {
     [ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin:$PATH"
     [ -d "$HOME/.cargo/bin" ] && export PATH="$HOME/.cargo/bin:$PATH"
 
-    # ---- 步骤 2: 检测必需工具 ----
+    # ---- 步骤 2: 检测必需工具 + 自动安装 ----
     header "=== 检测常用工具 ==="
-    MISSING=0
 
-    check_cmd git  "Git"  "true" || { MISSING=1; install_hint git; }
-    check_cmd curl "curl" "true" || { MISSING=1; install_hint curl; }
+    # 记录缺失的工具，统一自动安装
+    NEED_GIT=0
+    NEED_CURL=0
+    NEED_NODE=0
+    check_cmd git  "Git"  "true" || NEED_GIT=1
+    check_cmd curl "curl" "true" || NEED_CURL=1
 
     # npm/node 为必需（上游安装脚本依赖 npm 安装 claude/codex 客户端）
-    NODE_MISSING=0
-    check_cmd node "Node.js" "true" || { MISSING=1; NODE_MISSING=1; }
-    check_cmd npm  "npm"  "true" || { MISSING=1; [ "$NODE_MISSING" -eq 0 ] && install_hint npm; }
-
-    # node 缺失时自动安装，无需用户手动操作
-    if [ "$NODE_MISSING" -eq 1 ]; then
-        if auto_install_node; then
-            ok "Node.js 安装成功"
-        else
-            install_hint node
-        fi
-    fi
+    check_cmd node "Node.js" "true" || NEED_NODE=1
+    check_cmd npm  "npm"  "true" || { [ "$NEED_NODE" -eq 0 ] && install_hint npm; }
 
     check_cmd python3 "Python 3" "false" || true
     check_cmd uv   "uv"   "false" || true
 
-    # 最终验证：重新确认所有必需工具（node 可能刚被自动安装）
+    # 缺失的工具自动安装
+    [ "$NEED_GIT" -eq 1 ]  && ! auto_install_pkg git "Git"   && install_hint git
+    [ "$NEED_CURL" -eq 1 ] && ! auto_install_pkg curl "curl" && install_hint curl
+    [ "$NEED_NODE" -eq 1 ] && ! auto_install_node             && install_hint node
+
+    # 最终验证
     MISSING=0
     has_cmd git  || MISSING=1
     has_cmd curl || MISSING=1
