@@ -114,6 +114,60 @@ install_hint() {
     echo "  └───────────────────────────────────────────"
 }
 
+# ---------- 自动安装 Node.js ----------
+auto_install_node() {
+    echo ""
+    header "=== 自动安装 Node.js ==="
+    info "检测到 Node.js/npm 未安装，正在自动安装..."
+
+    if [ "$OS" = "macos" ]; then
+        if command -v brew >/dev/null 2>&1; then
+            brew install node && return 0
+        fi
+        warn "未找到 Homebrew，跳过自动安装。"
+        return 1
+    fi
+
+    # Linux — 先尝试包管理器，失败则用 nvm
+    if command -v apt-get >/dev/null 2>&1; then
+        info "检测到 Debian/Ubuntu，使用 NodeSource 安装 Node.js 22..."
+        curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash - && \
+            sudo apt-get install -y nodejs && return 0
+    fi
+
+    if command -v dnf >/dev/null 2>&1; then
+        info "检测到 Fedora，使用 dnf 安装 Node.js..."
+        sudo dnf install -y nodejs && return 0
+    fi
+
+    if command -v yum >/dev/null 2>&1; then
+        # CentOS 7 的 NodeSource 已停止支持，先尝试，失败则用 nvm
+        info "检测到 CentOS/RHEL，尝试安装 Node.js 22..."
+        if curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash - 2>/dev/null; then
+            sudo yum install -y nodejs && return 0
+        fi
+        warn "NodeSource 方式失败（CentOS 7 已 EOL），改用 nvm 安装..."
+    fi
+
+    if command -v pacman >/dev/null 2>&1; then
+        sudo pacman -S --noconfirm nodejs npm && return 0
+    fi
+
+    # 通用 fallback: nvm
+    if command -v curl >/dev/null 2>&1; then
+        info "使用 nvm (Node Version Manager) 安装 Node.js 22..."
+        export NVM_DIR="$HOME/.nvm"
+        curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+        if command -v nvm >/dev/null 2>&1; then
+            nvm install 22 && nvm use 22 && return 0
+        fi
+    fi
+
+    warn "自动安装失败，请手动安装 Node.js。"
+    return 1
+}
+
 # ---------- FCC 配置文件路径 ----------
 FCC_ENV_FILE="$HOME/.fcc/.env"
 
@@ -510,10 +564,28 @@ main() {
     check_cmd curl "curl" "true" || { MISSING=1; install_hint curl; }
 
     # npm/node 为必需（上游安装脚本依赖 npm 安装 claude/codex 客户端）
-    check_cmd node "Node.js" "true" || { MISSING=1; install_hint node; }
-    check_cmd npm  "npm"  "true" || { MISSING=1; install_hint npm; }
+    NODE_MISSING=0
+    check_cmd node "Node.js" "true" || { MISSING=1; NODE_MISSING=1; }
+    check_cmd npm  "npm"  "true" || { MISSING=1; [ "$NODE_MISSING" -eq 0 ] && install_hint npm; }
+
+    # node 缺失时自动安装，无需用户手动操作
+    if [ "$NODE_MISSING" -eq 1 ]; then
+        if auto_install_node; then
+            ok "Node.js 安装成功"
+        else
+            install_hint node
+        fi
+    fi
+
     check_cmd python3 "Python 3" "false" || true
     check_cmd uv   "uv"   "false" || true
+
+    # 最终验证：重新确认所有必需工具（node 可能刚被自动安装）
+    MISSING=0
+    has_cmd git  || MISSING=1
+    has_cmd curl || MISSING=1
+    has_cmd node || MISSING=1
+    has_cmd npm  || MISSING=1
 
     if [ "$MISSING" -eq 1 ]; then
         echo ""
