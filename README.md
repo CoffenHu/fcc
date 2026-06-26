@@ -13,7 +13,11 @@
 ### Linux / macOS
 
 ```bash
+# GitHub（国际）
 curl -fsSL https://raw.githubusercontent.com/CoffenHu/fcc/master/setup-fcc.sh | bash
+
+# Gitee（国内镜像，推荐）
+curl -fsSL https://gitee.com/Coffen/fcc/raw/master/setup-fcc.sh | bash
 ```
 
 ### Windows
@@ -21,16 +25,26 @@ curl -fsSL https://raw.githubusercontent.com/CoffenHu/fcc/master/setup-fcc.sh | 
 **Git Bash**（推荐）：
 
 ```bash
+# GitHub（国际）
 curl -fsSL https://raw.githubusercontent.com/CoffenHu/fcc/master/setup-fcc.sh | bash
+
+# Gitee（国内镜像，推荐）
+curl -fsSL https://gitee.com/Coffen/fcc/raw/master/setup-fcc.sh | bash
 ```
 
 **PowerShell**：
 
 ```powershell
+# GitHub（国际）
 irm https://raw.githubusercontent.com/CoffenHu/fcc/master/setup-fcc.ps1 | iex
+
+# Gitee（国内镜像，推荐）
+irm https://gitee.com/Coffen/fcc/raw/master/setup-fcc.ps1 | iex
 ```
 
 > 安装前会列出检测结果，确认后才开始下载安装。
+>
+> 国内用户建议使用 Gitee 镜像，下载速度更快。
 
 ## 安装过程
 
@@ -87,7 +101,7 @@ irm https://raw.githubusercontent.com/CoffenHu/fcc/master/setup-fcc.ps1 | iex
 |------|------|------|
 | git | ✅ | 克隆和版本管理 |
 | curl | ✅ | 下载安装脚本 |
-| node / npm | ❌ | FCC 内部用于安装 claude/codex 客户端 |
+| node / npm | ✅ | FCC 内部用于安装 claude/codex 客户端 |
 | python3 | ❌ | FCC 运行依赖（安装脚本会自动安装 3.14） |
 
 ## 使用 FCC

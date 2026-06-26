@@ -86,22 +86,29 @@ install_hint() {
             if [ "$OS" = "macos" ]; then
                 echo "  │  brew install git"
             else
-                echo "  │  sudo apt install git  (Debian/Ubuntu)"
-                echo "  │  sudo dnf install git  (Fedora)"
-                echo "  │  sudo pacman -S git    (Arch)"
+                echo "  │  Debian/Ubuntu: sudo apt install git"
+                echo "  │  CentOS/RHEL:   sudo yum install git"
+                echo "  │  Fedora:        sudo dnf install git"
+                echo "  │  Arch:          sudo pacman -S git"
             fi ;;
         node|npm)
             if [ "$OS" = "macos" ]; then
                 echo "  │  brew install node"
             else
-                echo "  │  curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash -"
-                echo "  │  sudo apt install -y nodejs"
+                echo "  │  Debian/Ubuntu:"
+                echo "  │    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash -"
+                echo "  │    sudo apt install -y nodejs"
+                echo "  │  CentOS/RHEL:"
+                echo "  │    curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash -"
+                echo "  │    sudo yum install -y nodejs"
+                echo "  │  Fedora: sudo dnf install nodejs"
             fi ;;
         curl)
             if [ "$OS" = "macos" ]; then
                 echo "  │  系统自带 curl"
             else
-                echo "  │  sudo apt install curl  (Debian/Ubuntu)"
+                echo "  │  Debian/Ubuntu: sudo apt install curl"
+                echo "  │  CentOS/RHEL:   sudo yum install curl"
             fi ;;
     esac
     echo "  └───────────────────────────────────────────"
@@ -502,9 +509,9 @@ main() {
     check_cmd git  "Git"  "true" || { MISSING=1; install_hint git; }
     check_cmd curl "curl" "true" || { MISSING=1; install_hint curl; }
 
-    # 可选工具（安装脚本内部用它来装 claude/codex 客户端）
-    check_cmd node "Node.js" "false" || true
-    check_cmd npm  "npm"  "false" || true
+    # npm/node 为必需（上游安装脚本依赖 npm 安装 claude/codex 客户端）
+    check_cmd node "Node.js" "true" || { MISSING=1; install_hint node; }
+    check_cmd npm  "npm"  "true" || { MISSING=1; install_hint npm; }
     check_cmd python3 "Python 3" "false" || true
     check_cmd uv   "uv"   "false" || true
 
