@@ -13,7 +13,7 @@
 ### Linux / macOS
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/coffen/fcc/main/setup-fcc.sh | bash
+curl -fsSL https://raw.githubusercontent.com/coffen/fcc/master/setup-fcc.sh | bash
 ```
 
 ### Windows
@@ -21,13 +21,13 @@ curl -fsSL https://raw.githubusercontent.com/coffen/fcc/main/setup-fcc.sh | bash
 **Git Bash**（推荐）：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/coffen/fcc/main/setup-fcc.sh | bash
+curl -fsSL https://raw.githubusercontent.com/coffen/fcc/master/setup-fcc.sh | bash
 ```
 
 **PowerShell**：
 
 ```powershell
-irm https://raw.githubusercontent.com/coffen/fcc/main/setup-fcc.ps1 | iex
+irm https://raw.githubusercontent.com/coffen/fcc/master/setup-fcc.ps1 | iex
 ```
 
 > 安装前会列出检测结果，确认后才开始下载安装。
