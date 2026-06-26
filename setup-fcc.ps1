@@ -38,48 +38,175 @@ function Get-CommandVersion {
     }
 }
 
+# ---------- 自动安装工具 (Windows) ----------
+function Install-MissingTool {
+    param(
+        [string] $Name,
+        [string] $WingetId,
+        [string] $ChocoPkg,
+        [string] $ManualUrl
+    )
+    Write-Host ""
+    Write-Header "=== 自动安装 $Name ==="
+    Write-Info "检测到 $Name 未安装，正在自动安装..."
+
+    # 优先 winget (Windows 10/11 自带)
+    if (Get-Command winget -ErrorAction SilentlyContinue) {
+        try {
+            winget install --id $WingetId --silent --accept-package-agreements 2>$null
+            if ($LASTEXITCODE -eq 0) { return $true }
+        } catch {}
+    }
+
+    # 其次 chocolatey
+    if (Get-Command choco -ErrorAction SilentlyContinue) {
+        try {
+            choco install $ChocoPkg -y --limit-output 2>$null
+            if ($LASTEXITCODE -eq 0) { return $true }
+        } catch {}
+    }
+
+    Write-Warn "自动安装失败，请手动安装: $ManualUrl"
+    return $false
+}
+
+function Install-MissingNode {
+    Write-Host ""
+    Write-Header "=== 自动安装 Node.js ==="
+    Write-Info "检测到 Node.js/npm 未安装，正在自动安装..."
+
+    # winget
+    if (Get-Command winget -ErrorAction SilentlyContinue) {
+        try {
+            winget install --id OpenJS.NodeJS.LTS --silent --accept-package-agreements 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                # 刷新 PATH
+                $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
+                            [Environment]::GetEnvironmentVariable("Path", "User")
+                return $true
+            }
+        } catch {}
+    }
+
+    # chocolatey
+    if (Get-Command choco -ErrorAction SilentlyContinue) {
+        try {
+            choco install nodejs-lts -y --limit-output 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
+                            [Environment]::GetEnvironmentVariable("Path", "User")
+                return $true
+            }
+        } catch {}
+    }
+
+    Write-Warn "自动安装失败，请手动安装: https://nodejs.org (推荐 LTS 版本)"
+    return $false
+}
+
 # ---------- 主流程 ----------
 function Main {
     Write-Host ""
-    Write-Host "╔═══════════════════════════════════════════════╗"
-    Write-Host "║   Free Claude Code (FCC) 自动化安装脚本        ║"
-    Write-Host "╚═══════════════════════════════════════════════╝"
+    Write-Host "╔══════════════════════════════════════════════════╗"
+    Write-Host "║                                                  ║"
+    Write-Host "║     Free Claude Code (FCC) 一键安装脚本           ║"
+    Write-Host "║                                                  ║"
+    Write-Host "╚══════════════════════════════════════════════════╝"
 
     # ---- 步骤 1: 检测系统 ----
     Write-Header "系统检测"
     Write-Host "操作系统: Windows"
     Write-Host "架构:     $(if ([Environment]::Is64BitOperatingSystem) { 'x86_64' } else { 'x86' })"
 
-    # ---- 步骤 2: 检测工具 ----
-    Write-Header "检测常用工具"
+    # ---- 步骤 2: 检测必需工具 + 自动安装 ----
+    Write-Header "检测常用工具 + 自动安装"
 
-    $missing = $false
-    $tools = @(
-        @{ Name = "git"; Cmd = "git"; Required = $true; Hint = "https://git-scm.com/download/win" },
-        @{ Name = "curl"; Cmd = "curl"; Required = $true; Hint = "Git Bash 自带 curl，或下载 https://curl.se" },
-        @{ Name = "Node.js"; Cmd = "node"; Required = $false; Hint = "https://nodejs.org (推荐 LTS 版本)" },
-        @{ Name = "npm"; Cmd = "npm"; Required = $false; Hint = "随 Node.js 一起安装" },
-        @{ Name = "Python 3"; Cmd = "python3"; Required = $false; Hint = "" },
-        @{ Name = "uv"; Cmd = "uv"; Required = $false; Hint = "" }
-    )
+    # 预加载常用 bin 目录
+    $env:Path = "$env:USERPROFILE\.local\bin;$env:USERPROFILE\.cargo\bin;$env:Path"
 
-    foreach ($tool in $tools) {
-        if (Test-CommandAvailable $tool.Cmd) {
-            Write-OK "$($tool.Name) — $(Get-CommandVersion $tool.Cmd)"
-        }
-        else {
-            if ($tool.Required) {
-                Write-Fail "$($tool.Name) 未安装（必需）"
-                Write-Host "  下载: $($tool.Hint)"
-                $missing = $true
-            }
-            else {
-                Write-Warn "$($tool.Name) 未安装（可选）"
-            }
+    $needGit = $false
+    $needCurl = $false
+    $needNode = $false
+    $nodeMissing = $false
+
+    # git
+    if (Test-CommandAvailable "git") {
+        Write-OK "Git — $(Get-CommandVersion git)"
+    } else {
+        Write-Fail "Git 未安装（必需）"
+        $needGit = $true
+    }
+
+    # curl
+    if (Test-CommandAvailable "curl") {
+        Write-OK "curl — $(Get-CommandVersion curl)"
+    } else {
+        Write-Fail "curl 未安装（必需）"
+        $needCurl = $true
+    }
+
+    # Node.js / npm（必需 — 上游安装脚本依赖）
+    if (Test-CommandAvailable "node") {
+        Write-OK "Node.js — $(Get-CommandVersion node)"
+    } else {
+        Write-Fail "Node.js 未安装（必需）"
+        $needNode = $true
+        $nodeMissing = $true
+    }
+
+    if (Test-CommandAvailable "npm") {
+        Write-OK "npm — $(Get-CommandVersion npm)"
+    } else {
+        Write-Fail "npm 未安装（必需）"
+        if (-not $nodeMissing) { Write-Host "  下载: https://nodejs.org (推荐 LTS 版本)" }
+    }
+
+    # 可选工具
+    if (Test-CommandAvailable "python3") {
+        Write-OK "Python 3 — $(Get-CommandVersion python3)"
+    } else {
+        Write-Warn "Python 3 未安装（可选）"
+    }
+
+    if (Test-CommandAvailable "uv") {
+        Write-OK "uv — $(Get-CommandVersion uv)"
+    } else {
+        Write-Warn "uv 未安装（可选）"
+    }
+
+    # 缺失的工具自动安装
+    if ($needGit) {
+        if (-not (Install-MissingTool -Name "Git" -WingetId "Git.Git" -ChocoPkg "git" -ManualUrl "https://git-scm.com/download/win")) {
+            $script:missing = $true
+        } else {
+            Write-OK "Git 安装成功"
         }
     }
 
-    if ($missing) {
+    if ($needCurl) {
+        if (-not (Install-MissingTool -Name "curl" -WingetId "cURL.cURL" -ChocoPkg "curl" -ManualUrl "https://curl.se")) {
+            $script:missing = $true
+        } else {
+            Write-OK "curl 安装成功"
+        }
+    }
+
+    if ($needNode) {
+        if (-not (Install-MissingNode)) {
+            $script:missing = $true
+        } else {
+            Write-OK "Node.js 安装成功"
+        }
+    }
+
+    # 最终验证
+    $script:missing = $false
+    if (-not (Test-CommandAvailable "git"))  { Write-Fail "Git 仍未找到"; $script:missing = $true }
+    if (-not (Test-CommandAvailable "curl")) { Write-Fail "curl 仍未找到"; $script:missing = $true }
+    if (-not (Test-CommandAvailable "node")) { Write-Fail "Node.js 仍未找到"; $script:missing = $true }
+    if (-not (Test-CommandAvailable "npm"))  { Write-Fail "npm 仍未找到"; $script:missing = $true }
+
+    if ($script:missing) {
         Write-Host ""
         Write-Warn "请先安装缺失的必需工具，然后重新运行此脚本。"
         exit 1
@@ -166,17 +293,29 @@ function Main {
 
     # ---- 完成 ----
     Write-Host ""
-    Write-Host "╔═══════════════════════════════════════════════╗"
-    Write-Host "║           安装完成！                         ║"
-    Write-Host "╠═══════════════════════════════════════════════╣"
-    Write-Host "║                                               ║"
-    Write-Host "║  启动代理:   fcc-server                       ║"
-    Write-Host "║  运行 Claude: fcc-claude                      ║"
-    Write-Host "║  运行 Codex:  fcc-codex                        ║"
-    Write-Host "║                                               ║"
-    Write-Host "║  管理界面:   http://127.0.0.1:8082/admin       ║"
-    Write-Host "║                                               ║"
-    Write-Host "╚═══════════════════════════════════════════════╝"
+    Write-Host "╔══════════════════════════════════════════════════╗"
+    Write-Host "║                                                  ║"
+    Write-Host "║              安装完成，开箱即用！                  ║"
+    Write-Host "║                                                  ║"
+    Write-Host "╠══════════════════════════════════════════════════╣"
+    Write-Host "║                                                  ║"
+    Write-Host "║  新终端生效:                                      ║"
+    Write-Host "║    重新打开终端即可                               ║"
+    Write-Host "║                                                  ║"
+    Write-Host "║  直接使用 (无需额外配置):                          ║"
+    Write-Host "║    fcc-claude     Claude Code 编程助手            ║"
+    Write-Host "║    fcc-codex      OpenAI Codex 编程助手           ║"
+    Write-Host "║                                                  ║"
+    Write-Host "║  服务管理:                                        ║"
+    Write-Host "║    fcc-server     启动代理服务                    ║"
+    Write-Host "║    http://127.0.0.1:8082/admin   管理界面          ║"
+    Write-Host "║                                                  ║"
+    Write-Host "║  工作流程:                                        ║"
+    Write-Host "║    1. fcc-server 启动代理                         ║"
+    Write-Host "║    2. 打开 http://127.0.0.1:8082/admin 配置模型    ║"
+    Write-Host "║    3. fcc-claude 或 fcc-codex 开始编码            ║"
+    Write-Host "║                                                  ║"
+    Write-Host "╚══════════════════════════════════════════════════╝"
     Write-Host ""
 }
 
@@ -234,19 +373,30 @@ function Set-FccModel {
         @{ Num = 15; Slug = "llamacpp";         Name = "llama.cpp (本地)";  KeyUrl = "";                                                      EnvKey = "";                       Model = "llamacpp/default" }
     )
 
-    Write-Host "  ┌─────────────────────────────────────────────┐"
-    Write-Host "  │         FCC 支持的 AI 模型提供商            │"
-    Write-Host "  ├─────────────────────────────────────────────┤"
-    Write-Host "  │  远程提供商（需要 API Key）                  │"
+    Write-Host "  ┌──────────────────────────────────────────────────┐"
+    Write-Host "  │            FCC 支持的 AI 模型提供商               │"
+    Write-Host "  ├──────────────────────────────────────────────────┤"
+    Write-Host "  │  远程提供商（需要 API Key）                        │"
+    Write-Host "  │                                                  │"
     foreach ($p in $providers[0..11]) {
-        Write-Host ("  │  " + $p.Num.ToString().PadRight(3) + $p.Name.PadRight(25) + " │")
+        $num = $p.Num.ToString().PadRight(3)
+        $name = $p.Name.PadRight(18)
+        $url = $p.KeyUrl.PadRight(35)
+        Write-Host "  │   $num $name $url │"
     }
-    Write-Host "  │                                               │"
-    Write-Host "  │  本地提供商（无需 API Key）                    │"
+    Write-Host "  │                                                  │"
+    Write-Host "  │  本地提供商（无需 API Key）                          │"
+    Write-Host "  │                                                  │"
     foreach ($p in $providers[12..14]) {
-        Write-Host ("  │  " + $p.Num.ToString().PadRight(3) + $p.Name.PadRight(25) + " │")
+        $num = $p.Num.ToString().PadRight(3)
+        $name = $p.Name.PadRight(18)
+        $addr = if ($p.Slug -eq "ollama") { "localhost:11434" } `
+           elseif ($p.Slug -eq "lmstudio") { "localhost:1234/v1" } `
+           else { "localhost:8080/v1" }
+        $addr = $addr.PadRight(35)
+        Write-Host "  │   $num $name $addr │"
     }
-    Write-Host "  └─────────────────────────────────────────────┘"
+    Write-Host "  └──────────────────────────────────────────────────┘"
     Write-Host ""
 
     $choice = Read-Host "请选择提供商 [1-15] (默认: 1 DeepSeek)"
