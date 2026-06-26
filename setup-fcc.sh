@@ -577,6 +577,50 @@ main() {
         info "跳过模型配置（之后可在 http://127.0.0.1:8082/admin 配置）。"
     fi
 
+    # ---- 步骤 9: Claude Code 自动升级配置 ----
+    echo ""
+    header "=== Claude Code 自动升级配置 ==="
+    echo "  Claude Code 默认会自动更新到最新版。"
+    echo "  禁用后可锁定版本，避免兼容性问题。"
+    echo ""
+    read -r -p "是否禁用 Claude Code 自动升级？[Y/n] " DISABLE_UPGRADE </dev/tty
+    DISABLE_UPGRADE="${DISABLE_UPGRADE:-y}"
+
+    if [ "$DISABLE_UPGRADE" = "y" ] || [ "$DISABLE_UPGRADE" = "Y" ]; then
+        # 写入环境变量到 shell 配置文件
+        for profile in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile" "$HOME/.zshrc"; do
+            if [ -f "$profile" ] && ! grep -q "CLAUDE_CODE_DISABLE_AUTO_UPDATE" "$profile" 2>/dev/null; then
+                echo "export CLAUDE_CODE_DISABLE_AUTO_UPDATE=true" >> "$profile"
+            fi
+        done
+        export CLAUDE_CODE_DISABLE_AUTO_UPDATE=true
+        ok "已禁用 Claude Code 自动升级"
+
+        # ---- 步骤 10: 安装稳定版本 ----
+        echo ""
+        header "=== 安装 Claude Code 稳定版本 ==="
+        STABLE_VERSION="2.1.150"
+        info "最新版可能存在兼容性问题，稳定版 $STABLE_VERSION 经过充分测试。"
+        echo ""
+        read -r -p "是否安装 Claude Code $STABLE_VERSION 稳定版本？[Y/n] " INSTALL_STABLE </dev/tty
+        INSTALL_STABLE="${INSTALL_STABLE:-y}"
+
+        if [ "$INSTALL_STABLE" = "y" ] || [ "$INSTALL_STABLE" = "Y" ]; then
+            if has_cmd npm; then
+                info "正在安装 Claude Code @ $STABLE_VERSION ..."
+                npm install -g "@anthropic-ai/claude-code@$STABLE_VERSION" 2>/dev/null && \
+                    ok "Claude Code $STABLE_VERSION 已安装" || \
+                    warn "安装失败，请手动执行: npm install -g @anthropic-ai/claude-code@$STABLE_VERSION"
+            else
+                warn "npm 未找到，无法安装指定版本。请手动执行: npm install -g @anthropic-ai/claude-code@$STABLE_VERSION"
+            fi
+        else
+            info "保持当前版本。"
+        fi
+    else
+        info "保持默认自动升级策略。"
+    fi
+
     # ---- 完成 ----
     echo ""
     echo "╔═══════════════════════════════════════════════╗"
