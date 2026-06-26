@@ -144,6 +144,12 @@ auto_install_pkg() {
     return 1
 }
 
+# ---------- 检测是否为 CentOS 7 (glibc 2.17 不兼容 Node.js 18+) ----------
+is_centos7() {
+    [ -f /etc/centos-release ] && grep -q "CentOS Linux release 7" /etc/centos-release 2>/dev/null
+    [ -f /etc/redhat-release ] && grep -q "release 7" /etc/redhat-release 2>/dev/null
+}
+
 # ---------- 自动安装 Node.js ----------
 auto_install_node() {
     echo ""
@@ -158,43 +164,58 @@ auto_install_node() {
         return 1
     fi
 
-    # Linux — 先尝试包管理器，失败则用 nvm
+    # CentOS 7 特殊处理：glibc 2.17，只兼容 Node.js 18
+    if is_centos7; then
+        info "CentOS 7 (glibc 2.17)，安装 Node.js 18 (二进制包)..."
+        local node_ver="18.20.8"
+        local node_url="https://nodejs.org/dist/v${node_ver}/node-v${node_ver}-linux-x64.tar.xz"
+        curl -fsSL "$node_url" -o /tmp/node.tar.xz && \
+            sudo tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 && \
+            rm -f /tmp/node.tar.xz && \
+            ok "Node.js $node_ver 已安装到 /usr/local" && \
+            return 0
+        warn "二进制包安装失败，请手动安装: https://nodejs.org/en/download"
+        return 1
+    fi
+
+    # Debian/Ubuntu
     if command -v apt-get >/dev/null 2>&1; then
         info "检测到 Debian/Ubuntu，使用 NodeSource 安装 Node.js 22..."
         curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash - && \
             sudo apt-get install -y nodejs && return 0
     fi
 
+    # Fedora
     if command -v dnf >/dev/null 2>&1; then
         info "检测到 Fedora，使用 dnf 安装 Node.js..."
         sudo dnf install -y nodejs && return 0
     fi
 
+    # RHEL 8+ / CentOS 8+ (非 CentOS 7 的 yum 系统)
     if command -v yum >/dev/null 2>&1; then
-        # CentOS 7 的 NodeSource 已停止支持，先尝试，失败则用 nvm
-        info "检测到 CentOS/RHEL，尝试安装 Node.js 22..."
+        info "检测到 RHEL/CentOS 8+，使用 NodeSource 安装 Node.js 22..."
         if curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash - 2>/dev/null; then
             sudo yum install -y nodejs && return 0
         fi
-        warn "NodeSource 方式失败（CentOS 7 已 EOL），改用 nvm 安装..."
     fi
 
+    # Arch
     if command -v pacman >/dev/null 2>&1; then
         sudo pacman -S --noconfirm nodejs npm && return 0
     fi
 
-    # 通用 fallback: nvm
-    if command -v curl >/dev/null 2>&1; then
-        info "使用 nvm (Node Version Manager) 安装 Node.js 22..."
-        export NVM_DIR="$HOME/.nvm"
-        curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
-        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-        if command -v nvm >/dev/null 2>&1; then
-            nvm install 22 && nvm use 22 && return 0
-        fi
+    # 通用 fallback: 下载 Node.js 22 二进制包
+    info "使用 Node.js 22 二进制包..."
+    local node_ver="22.17.0"
+    local node_url="https://nodejs.org/dist/v${node_ver}/node-v${node_ver}-linux-x64.tar.xz"
+    if curl -fsSL "$node_url" -o /tmp/node.tar.xz 2>/dev/null; then
+        sudo tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 && \
+            rm -f /tmp/node.tar.xz && \
+            ok "Node.js $node_ver 已安装到 /usr/local" && \
+            return 0
     fi
 
-    warn "自动安装失败，请手动安装 Node.js。"
+    warn "自动安装失败，请手动安装 Node.js: https://nodejs.org/en/download"
     return 1
 }
 
