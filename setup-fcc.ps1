@@ -98,7 +98,19 @@ function Main {
         exit 0
     }
 
-    # ---- 步骤 4: 执行安装 ----
+    # ---- 步骤 4: 配置镜像加速 ----
+    Write-Header "配置镜像加速"
+    Write-Info "配置 npm 和 PyPI 阿里镜像源，加速国内下载..."
+
+    if (Get-Command npm -ErrorAction SilentlyContinue) {
+        npm config set registry https://registry.npmmirror.com 2>$null
+        Write-OK "npm 镜像: registry.npmmirror.com"
+    }
+
+    $env:UV_INDEX_URL = "https://mirrors.aliyun.com/pypi/simple/"
+    Write-OK "PyPI 镜像: mirrors.aliyun.com"
+
+    # ---- 步骤 5: 执行安装 ----
     Write-Host ""
     Write-Header "使用 PowerShell 安装"
     Write-Info "执行 Windows 安装脚本（这将需要几分钟）..."
@@ -112,7 +124,7 @@ function Main {
         exit 1
     }
 
-    # ---- 步骤 5: 验证安装 ----
+    # ---- 步骤 6: 验证安装 ----
     Write-Host ""
     Write-Header "验证安装"
 
@@ -126,7 +138,7 @@ function Main {
         Write-Warn "fcc-server 未在 PATH 中找到，可能需要重启终端。"
     }
 
-    # ---- 步骤 6: 开机自启动 ----
+    # ---- 步骤 7: 开机自启动 ----
     if (-not $SkipAutostart) {
         Write-Host ""
         Write-Header "开机自启动配置"
@@ -139,7 +151,7 @@ function Main {
         }
     }
 
-    # ---- 步骤 7: 模型配置 ----
+    # ---- 步骤 8: 模型配置 ----
     if (-not $SkipModel) {
         Write-Host ""
         Write-Header "模型配置"

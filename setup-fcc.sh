@@ -505,7 +505,19 @@ main() {
         exit 0
     fi
 
-    # ---- 步骤 5: 执行安装 ----
+    # ---- 步骤 5: 配置镜像加速 ----
+    header "=== 配置镜像加速 ==="
+    info "配置 npm 和 PyPI 阿里镜像源，加速国内下载..."
+
+    if has_cmd npm; then
+        npm config set registry https://registry.npmmirror.com 2>/dev/null || true
+        ok "npm 镜像: registry.npmmirror.com"
+    fi
+
+    export UV_INDEX_URL="https://mirrors.aliyun.com/pypi/simple/"
+    ok "PyPI 镜像: mirrors.aliyun.com"
+
+    # ---- 步骤 6: 执行安装 ----
     echo ""
 
     if [ "$OS" = "windows" ]; then
@@ -514,7 +526,7 @@ main() {
         info "安装内容: uv → Python 3.14 → Free Claude Code"
 
         "$PWSH" -NoProfile -ExecutionPolicy Bypass -Command \
-            "irm 'https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.ps1?raw=1' | iex"
+            "\$env:UV_INDEX_URL='https://mirrors.aliyun.com/pypi/simple/'; npm config set registry https://registry.npmmirror.com 2>\$null; irm 'https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.ps1?raw=1' | iex"
 
     elif [ "$OS" = "macos" ] || [ "$OS" = "linux" ]; then
         header "=== 使用 Shell 安装 ==="
@@ -524,7 +536,7 @@ main() {
         curl -fsSL "https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.sh?raw=1" | sh
     fi
 
-    # ---- 步骤 6: 验证安装 ----
+    # ---- 步骤 7: 验证安装 ----
     echo ""
     header "=== 验证安装 ==="
 
@@ -548,7 +560,7 @@ main() {
         fi
     fi
 
-    # ---- 步骤 7: 开机自启动 ----
+    # ---- 步骤 8: 开机自启动 ----
     header "=== 开机自启动配置 ==="
     read -r -p "是否配置 fcc-server 开机自启动？[Y/n] " REPLY_AUTOSTART </dev/tty
     REPLY_AUTOSTART="${REPLY_AUTOSTART:-y}"
@@ -558,7 +570,7 @@ main() {
         info "跳过开机自启动配置。"
     fi
 
-    # ---- 步骤 8: 模型配置 ----
+    # ---- 步骤 9: 模型配置 ----
     echo ""
     header "=== 模型配置 ==="
     read -r -p "是否现在配置模型和 API Key？[Y/n] " REPLY_MODEL </dev/tty

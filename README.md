@@ -13,7 +13,7 @@
 ### Linux / macOS
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/coffen/fcc/master/setup-fcc.sh | bash
+curl -fsSL https://raw.githubusercontent.com/CoffenHu/fcc/master/setup-fcc.sh | bash
 ```
 
 ### Windows
@@ -21,20 +21,20 @@ curl -fsSL https://raw.githubusercontent.com/coffen/fcc/master/setup-fcc.sh | ba
 **Git Bash**（推荐）：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/coffen/fcc/master/setup-fcc.sh | bash
+curl -fsSL https://raw.githubusercontent.com/CoffenHu/fcc/master/setup-fcc.sh | bash
 ```
 
 **PowerShell**：
 
 ```powershell
-irm https://raw.githubusercontent.com/coffen/fcc/master/setup-fcc.ps1 | iex
+irm https://raw.githubusercontent.com/CoffenHu/fcc/master/setup-fcc.ps1 | iex
 ```
 
 > 安装前会列出检测结果，确认后才开始下载安装。
 
 ## 安装过程
 
-脚本运行后分 8 个步骤：
+脚本运行后分 9 个步骤：
 
 | 步骤 | 说明 | 交互 |
 |------|------|------|
@@ -42,10 +42,11 @@ irm https://raw.githubusercontent.com/coffen/fcc/master/setup-fcc.ps1 | iex
 | 2 | 检测 git/curl/node/npm/python3/uv | 自动 |
 | 3 | Windows 下查找 PowerShell | 自动 |
 | 4 | 确认是否继续安装 | **Y/n** |
-| 5 | 调用 FCC 官方脚本安装 | 自动 |
-| 6 | 验证安装结果 | 自动 |
-| 7 | 配置开机自启动 | **Y/n** |
-| 8 | 选择模型提供商 + API Key | **Y/n** |
+| 5 | 配置 npm + PyPI 阿里镜像源 | 自动 |
+| 6 | 调用 FCC 官方脚本安装 | 自动 |
+| 7 | 验证安装结果 | 自动 |
+| 8 | 配置开机自启动 | **Y/n** |
+| 9 | 选择模型提供商 + API Key | **Y/n** |
 
 ## 支持的 AI 模型提供商
 
