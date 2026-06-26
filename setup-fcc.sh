@@ -114,6 +114,17 @@ FCC_ENV_FILE="$HOME/.fcc/.env"
 fix_shell_path() {
     local bins=("$HOME/.local/bin" "$HOME/.cargo/bin")
     local profiles=("$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile" "$HOME/.zshrc")
+    local found=false
+
+    # 检查是否有可用的 profile 文件
+    for profile in "${profiles[@]}"; do
+        [ -f "$profile" ] && found=true && break
+    done
+
+    # 如果都不存在，创建 ~/.bashrc（Docker 容器常见情况）
+    if [ "$found" = false ]; then
+        touch "$HOME/.bashrc"
+    fi
 
     for bin_dir in "${bins[@]}"; do
         # 当前会话立即生效
@@ -627,6 +638,9 @@ main() {
     echo "║           安装完成！                         ║"
     echo "╠═══════════════════════════════════════════════╣"
     echo "║                                               ║"
+    echo "║  ⚡ 立即生效:                                  ║"
+    echo "║     source ~/.bashrc                          ║"
+    echo "║                                               ║"
     echo "║  启动代理:   fcc-server                       ║"
     echo "║  运行 Claude: fcc-claude                      ║"
     echo "║  运行 Codex:  fcc-codex                        ║"
@@ -641,6 +655,9 @@ main() {
     echo "║                                               ║"
     echo "╚═══════════════════════════════════════════════╝"
     echo ""
+    # 最后一次尝试：确保当前会话能直接用
+    [ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin:$PATH" 2>/dev/null || true
+    [ -d "$HOME/.cargo/bin" ] && export PATH="$HOME/.cargo/bin:$PATH" 2>/dev/null || true
 }
 
 main
