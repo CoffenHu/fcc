@@ -169,7 +169,7 @@ auto_install_node() {
         info "CentOS 7 (glibc 2.17)，安装 Node.js 18 (二进制包)..."
         local node_ver="18.20.8"
         local node_url="https://nodejs.org/dist/v${node_ver}/node-v${node_ver}-linux-x64.tar.xz"
-        curl -fsSL "$node_url" -o /tmp/node.tar.xz && \
+        curl -fsSL --http1.1 --retry 3 "$node_url" -o /tmp/node.tar.xz && \
             sudo tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 && \
             rm -f /tmp/node.tar.xz && \
             ok "Node.js $node_ver 已安装到 /usr/local" && \
@@ -181,7 +181,7 @@ auto_install_node() {
     # Debian/Ubuntu
     if command -v apt-get >/dev/null 2>&1; then
         info "检测到 Debian/Ubuntu，使用 NodeSource 安装 Node.js 22..."
-        curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash - && \
+        curl -fsSL --http1.1 --retry 3 https://deb.nodesource.com/setup_22.x | sudo bash - && \
             sudo apt-get install -y nodejs && return 0
     fi
 
@@ -194,7 +194,7 @@ auto_install_node() {
     # RHEL 8+ / CentOS 8+ (非 CentOS 7 的 yum 系统)
     if command -v yum >/dev/null 2>&1; then
         info "检测到 RHEL/CentOS 8+，使用 NodeSource 安装 Node.js 22..."
-        if curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash - 2>/dev/null; then
+        if curl -fsSL --http1.1 --retry 3 https://rpm.nodesource.com/setup_22.x | sudo bash - 2>/dev/null; then
             sudo yum install -y nodejs && return 0
         fi
     fi
@@ -208,7 +208,7 @@ auto_install_node() {
     info "使用 Node.js 22 二进制包..."
     local node_ver="22.17.0"
     local node_url="https://nodejs.org/dist/v${node_ver}/node-v${node_ver}-linux-x64.tar.xz"
-    if curl -fsSL "$node_url" -o /tmp/node.tar.xz 2>/dev/null; then
+    if curl -fsSL --http1.1 --retry 3 "$node_url" -o /tmp/node.tar.xz 2>/dev/null; then
         sudo tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 && \
             rm -f /tmp/node.tar.xz && \
             ok "Node.js $node_ver 已安装到 /usr/local" && \
@@ -672,7 +672,7 @@ main() {
     info "执行安装脚本（这将需要几分钟）..."
     info "安装内容: uv → Python 3.14 → Free Claude Code"
 
-    curl -fsSL "https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.sh?raw=1" | sh
+    curl -fsSL --http1.1 --retry 3 "https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.sh?raw=1" | sh
 
     # ---- 步骤 6: 修复 PATH + 验证 ----
     header "=== 修复 PATH + 验证安装 ==="
