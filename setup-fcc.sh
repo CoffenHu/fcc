@@ -428,7 +428,7 @@ configure_model() {
         1)  PROVIDER="deepseek"
             PROVIDER_NAME="DeepSeek"
             ENV_KEY="DEEPSEEK_API_KEY"
-            DEFAULT_MODEL="deepseek-v4-pro"
+            DEFAULT_MODEL="deepseek/deepseek-v4-pro"
             KEY_URL="https://platform.deepseek.com/api_keys"
             ;;
         2)  PROVIDER="nvidia_nim"
@@ -571,6 +571,16 @@ write_fcc_config() {
     else
         echo "MODEL=${default_model}" >> "$FCC_ENV_FILE"
     fi
+
+    # 模型路由：Opus/Sonnet/Haiku 均使用同一模型
+    for route in MODEL_OPUS MODEL_SONNET MODEL_HAIKU; do
+        if grep -q "^${route}=" "$FCC_ENV_FILE" 2>/dev/null; then
+            sed -i.bak "s/^${route}=.*/${route}=${default_model}/" "$FCC_ENV_FILE"
+            rm -f "${FCC_ENV_FILE}.bak"
+        else
+            echo "${route}=${default_model}" >> "$FCC_ENV_FILE"
+        fi
+    done
 
     # 更新 API Key
     if [ -n "$api_key" ] && [ -n "${ENV_KEY:-}" ]; then

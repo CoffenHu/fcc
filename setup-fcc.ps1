@@ -356,7 +356,7 @@ function Set-FccModel {
     Write-Host ""
 
     $providers = @(
-        @{ Num = 1;  Slug = "deepseek";         Name = "DeepSeek";          KeyUrl = "https://platform.deepseek.com/api_keys";              EnvKey = "DEEPSEEK_API_KEY";      Model = "deepseek-v4-pro" },
+        @{ Num = 1;  Slug = "deepseek";         Name = "DeepSeek";          KeyUrl = "https://platform.deepseek.com/api_keys";              EnvKey = "DEEPSEEK_API_KEY";      Model = "deepseek/deepseek-v4-pro" },
         @{ Num = 2;  Slug = "nvidia_nim";       Name = "NVIDIA NIM";        KeyUrl = "https://build.nvidia.com/settings/api-keys";           EnvKey = "NVIDIA_NIM_API_KEY";     Model = "nvidia_nim/nvidia/nemotron-3-super-120b-a12b" },
         @{ Num = 3;  Slug = "open_router";      Name = "OpenRouter";        KeyUrl = "https://openrouter.ai/keys";                           EnvKey = "OPENROUTER_API_KEY";     Model = "open_router/openrouter/free" },
         @{ Num = 4;  Slug = "gemini";           Name = "Google Gemini";     KeyUrl = "https://aistudio.google.com/apikey";                    EnvKey = "GEMINI_API_KEY";         Model = "gemini/models/gemini-3.1-flash-lite" },
@@ -459,17 +459,29 @@ function Write-FccConfig {
         Copy-Item $envFile (Join-Path $fccDir $backupName)
     }
 
-    # 读入现有配置并更新 MODEL 和 API Key
+    # 读入现有配置并更新 MODEL、路由模型、API Key
     $lines = Get-Content $envFile -Encoding utf8NoBOM
     $newLines = @()
     $hasModel = $false
+    $hasOpus = $false; $hasSonnet = $false; $hasHaiku = $false
     $hasKey = $false
-    $keyLine = "$($Provider.EnvKey)="
 
     foreach ($line in $lines) {
         if ($line -match '^MODEL=') {
             $newLines += "MODEL=$($Provider.Model)"
             $hasModel = $true
+        }
+        elseif ($line -match '^MODEL_OPUS=') {
+            $newLines += "MODEL_OPUS=$($Provider.Model)"
+            $hasOpus = $true
+        }
+        elseif ($line -match '^MODEL_SONNET=') {
+            $newLines += "MODEL_SONNET=$($Provider.Model)"
+            $hasSonnet = $true
+        }
+        elseif ($line -match '^MODEL_HAIKU=') {
+            $newLines += "MODEL_HAIKU=$($Provider.Model)"
+            $hasHaiku = $true
         }
         elseif ($ApiKey -and $Provider.EnvKey -and ($line -match "^$([regex]::Escape($Provider.EnvKey))=")) {
             $newLines += "$($Provider.EnvKey)=$ApiKey"
@@ -480,7 +492,10 @@ function Write-FccConfig {
         }
     }
 
-    if (-not $hasModel) { $newLines += "MODEL=$($Provider.Model)" }
+    if (-not $hasModel)  { $newLines += "MODEL=$($Provider.Model)" }
+    if (-not $hasOpus)   { $newLines += "MODEL_OPUS=$($Provider.Model)" }
+    if (-not $hasSonnet) { $newLines += "MODEL_SONNET=$($Provider.Model)" }
+    if (-not $hasHaiku)  { $newLines += "MODEL_HAIKU=$($Provider.Model)" }
     if ($ApiKey -and $Provider.EnvKey -and -not $hasKey) { $newLines += "$($Provider.EnvKey)=$ApiKey" }
 
     $newLines | Out-File -FilePath $envFile -Encoding utf8NoBOM
