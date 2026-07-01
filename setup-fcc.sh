@@ -564,9 +564,9 @@ write_fcc_config() {
         cp "$FCC_ENV_FILE" "${FCC_ENV_FILE}.backup.$(date +%Y%m%d%H%M%S)"
     fi
 
-    # 更新 MODEL
+    # 更新 MODEL（用 | 分隔避免模型名含 / 冲突）
     if grep -q "^MODEL=" "$FCC_ENV_FILE" 2>/dev/null; then
-        sed -i.bak "s/^MODEL=.*/MODEL=${default_model}/" "$FCC_ENV_FILE"
+        sed -i.bak "s|^MODEL=.*|MODEL=${default_model}|" "$FCC_ENV_FILE"
         rm -f "${FCC_ENV_FILE}.bak"
     else
         echo "MODEL=${default_model}" >> "$FCC_ENV_FILE"
@@ -575,7 +575,7 @@ write_fcc_config() {
     # 模型路由：Opus/Sonnet/Haiku 均使用同一模型
     for route in MODEL_OPUS MODEL_SONNET MODEL_HAIKU; do
         if grep -q "^${route}=" "$FCC_ENV_FILE" 2>/dev/null; then
-            sed -i.bak "s/^${route}=.*/${route}=${default_model}/" "$FCC_ENV_FILE"
+            sed -i.bak "s|^${route}=.*|${route}=${default_model}|" "$FCC_ENV_FILE"
             rm -f "${FCC_ENV_FILE}.bak"
         else
             echo "${route}=${default_model}" >> "$FCC_ENV_FILE"
@@ -585,7 +585,7 @@ write_fcc_config() {
     # 更新 API Key
     if [ -n "$api_key" ] && [ -n "${ENV_KEY:-}" ]; then
         if grep -q "^${ENV_KEY}=" "$FCC_ENV_FILE" 2>/dev/null; then
-            sed -i.bak "s/^${ENV_KEY}=.*/${ENV_KEY}=${api_key}/" "$FCC_ENV_FILE"
+            sed -i.bak "s|^${ENV_KEY}=.*|${ENV_KEY}=${api_key}|" "$FCC_ENV_FILE"
             rm -f "${FCC_ENV_FILE}.bak"
         else
             echo "${ENV_KEY}=${api_key}" >> "$FCC_ENV_FILE"
