@@ -356,7 +356,7 @@ function Set-FccModel {
     Write-Host ""
 
     $providers = @(
-        @{ Num = 1;  Slug = "deepseek";         Name = "DeepSeek";          KeyUrl = "https://platform.deepseek.com/api_keys";              EnvKey = "DEEPSEEK_API_KEY";      Model = "deepseek/deepseek-chat" },
+        @{ Num = 1;  Slug = "deepseek";         Name = "DeepSeek";          KeyUrl = "https://platform.deepseek.com/api_keys";              EnvKey = "DEEPSEEK_API_KEY";      Model = "deepseek-v4-pro" },
         @{ Num = 2;  Slug = "nvidia_nim";       Name = "NVIDIA NIM";        KeyUrl = "https://build.nvidia.com/settings/api-keys";           EnvKey = "NVIDIA_NIM_API_KEY";     Model = "nvidia_nim/nvidia/nemotron-3-super-120b-a12b" },
         @{ Num = 3;  Slug = "open_router";      Name = "OpenRouter";        KeyUrl = "https://openrouter.ai/keys";                           EnvKey = "OPENROUTER_API_KEY";     Model = "open_router/openrouter/free" },
         @{ Num = 4;  Slug = "gemini";           Name = "Google Gemini";     KeyUrl = "https://aistudio.google.com/apikey";                    EnvKey = "GEMINI_API_KEY";         Model = "gemini/models/gemini-3.1-flash-lite" },
@@ -444,34 +444,46 @@ function Write-FccConfig {
         New-Item -Path $fccDir -ItemType Directory -Force | Out-Null
     }
 
-    # 备份已有配置
-    if (Test-Path $envFile) {
+    # 先通过 fcc-init 生成默认配置（保留上游所有默认值）
+    if (Get-Command fcc-init -ErrorAction SilentlyContinue) {
+        Write-Info "运行 fcc-init 生成默认配置..."
+        try { fcc-init 2>$null } catch {}
+    }
+
+    # 如果 fcc-init 未生成，则创建空文件
+    if (-not (Test-Path $envFile)) {
+        "" | Out-File -FilePath $envFile -Encoding utf8NoBOM
+    }
+    else {
         $backupName = ".env.backup." + (Get-Date -Format "yyyyMMddHHmmss")
         Copy-Item $envFile (Join-Path $fccDir $backupName)
     }
 
-    # 写入配置
-    $config = @"
-# FCC 配置文件 (由 setup-fcc.ps1 自动生成)
-# 修改后重启 fcc-server 生效
+    # 读入现有配置并更新 MODEL 和 API Key
+    $lines = Get-Content $envFile -Encoding utf8NoBOM
+    $newLines = @()
+    $hasModel = $false
+    $hasKey = $false
+    $keyLine = "$($Provider.EnvKey)="
 
-# $($Provider.Name) 配置
-$($Provider.EnvKey)=$ApiKey
+    foreach ($line in $lines) {
+        if ($line -match '^MODEL=') {
+            $newLines += "MODEL=$($Provider.Model)"
+            $hasModel = $true
+        }
+        elseif ($ApiKey -and $Provider.EnvKey -and ($line -match "^$([regex]::Escape($Provider.EnvKey))=")) {
+            $newLines += "$($Provider.EnvKey)=$ApiKey"
+            $hasKey = $true
+        }
+        else {
+            $newLines += $line
+        }
+    }
 
-# 模型配置
-MODEL=$($Provider.Model)
+    if (-not $hasModel) { $newLines += "MODEL=$($Provider.Model)" }
+    if ($ApiKey -and $Provider.EnvKey -and -not $hasKey) { $newLines += "$($Provider.EnvKey)=$ApiKey" }
 
-# 服务端口 (默认 8082)
-PORT=8082
-
-# 服务认证
-ANTHROPIC_AUTH_TOKEN=freecc
-
-# 自动打开浏览器
-FCC_OPEN_BROWSER=true
-"@
-
-    $config | Out-File -FilePath $envFile -Encoding utf8NoBOM
+    $newLines | Out-File -FilePath $envFile -Encoding utf8NoBOM
 
     Write-OK "$($Provider.Name) 配置已写入: $envFile"
     Write-Info "默认模型: $($Provider.Model)"

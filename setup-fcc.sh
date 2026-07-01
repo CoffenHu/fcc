@@ -428,7 +428,7 @@ configure_model() {
         1)  PROVIDER="deepseek"
             PROVIDER_NAME="DeepSeek"
             ENV_KEY="DEEPSEEK_API_KEY"
-            DEFAULT_MODEL="deepseek/deepseek-chat"
+            DEFAULT_MODEL="deepseek-v4-pro"
             KEY_URL="https://platform.deepseek.com/api_keys"
             ;;
         2)  PROVIDER="nvidia_nim"
@@ -549,31 +549,38 @@ write_fcc_config() {
     local api_key="$3"
     local default_model="$4"
 
-    # 备份已有配置
-    if [ -f "$FCC_ENV_FILE" ]; then
+    mkdir -p "$HOME/.fcc"
+
+    # 先通过 fcc-init 生成默认配置（保留上游所有默认值）
+    if command -v fcc-init >/dev/null 2>&1; then
+        info "运行 fcc-init 生成默认配置..."
+        fcc-init 2>/dev/null || true
+    fi
+
+    # 如果 fcc-init 未生成，则创建空文件
+    if [ ! -f "$FCC_ENV_FILE" ]; then
+        touch "$FCC_ENV_FILE"
+    else
         cp "$FCC_ENV_FILE" "${FCC_ENV_FILE}.backup.$(date +%Y%m%d%H%M%S)"
     fi
 
-    # 写入配置
-    cat > "$FCC_ENV_FILE" << EOF
-# FCC 配置文件 (由 setup-fcc.sh 自动生成)
-# 修改后重启 fcc-server 生效
+    # 更新 MODEL
+    if grep -q "^MODEL=" "$FCC_ENV_FILE" 2>/dev/null; then
+        sed -i.bak "s/^MODEL=.*/MODEL=${default_model}/" "$FCC_ENV_FILE"
+        rm -f "${FCC_ENV_FILE}.bak"
+    else
+        echo "MODEL=${default_model}" >> "$FCC_ENV_FILE"
+    fi
 
-# ${provider_name} 配置
-${ENV_KEY:-}=${api_key}
-
-# 模型配置
-MODEL=${default_model}
-
-# 服务端口 (默认 8082)
-PORT=8082
-
-# 服务认证 (留空使用默认值 freecc)
-ANTHROPIC_AUTH_TOKEN=freecc
-
-# 自动打开浏览器
-FCC_OPEN_BROWSER=true
-EOF
+    # 更新 API Key
+    if [ -n "$api_key" ] && [ -n "${ENV_KEY:-}" ]; then
+        if grep -q "^${ENV_KEY}=" "$FCC_ENV_FILE" 2>/dev/null; then
+            sed -i.bak "s/^${ENV_KEY}=.*/${ENV_KEY}=${api_key}/" "$FCC_ENV_FILE"
+            rm -f "${FCC_ENV_FILE}.bak"
+        else
+            echo "${ENV_KEY}=${api_key}" >> "$FCC_ENV_FILE"
+        fi
+    fi
 
     ok "${provider_name} 配置已写入: $FCC_ENV_FILE"
     info "默认模型: $default_model"
